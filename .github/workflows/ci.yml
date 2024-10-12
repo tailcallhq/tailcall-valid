@@ -1,0 +1,74 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # TODO: cancel in progress is not ok for a release since it can be cancelled in a middle of updates
+  # and we can end up with partial release.
+  # but for pull-requests cancelling previously running jobs could be beneficial
+  # cancel-in-progress: true
+
+jobs:
+  setup_build_matrix:
+    name: Outputs matrix used for cross compilation
+    uses: ./.github/workflows/build_matrix.yml
+
+  test_wasm:
+    name: Run Tests (WASM)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./tailcall-wasm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: wasm32-unknown-unknown
+
+      - name: Install Wasm Pack
+        run: cargo install wasm-bindgen-cli --vers "0.2.92"
+
+      - name: Test WASM
+        run: |
+          # TODO: add test for wasm, so we could actually test that.
+          cargo install -q worker-build && worker-build
+
+  test:
+    name: Run Tests on ${{ matrix.build }}
+    runs-on: ${{ matrix.os || 'ubuntu-latest' }}
+    needs: setup_build_matrix
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.setup_build_matrix.outputs.matrix) }}
+
+      steps:
+        - uses: actions/checkout@v4
+
+        - name: Install Node.js
+          uses: actions/setup-node@v4
+          with:
+            node-version: "20.11.0"
+
+        - name: Install Rust Toolchain
+          uses: actions-rust-lang/setup-rust-toolchain@v1
+
+        - name: Install Cross compilation toolchain
+          uses: taiki-e/setup-cross-toolchain-action@v1
+          with:
+            target: ${{ matrix.target }}
+        - uses: taiki-e/install-action@cargo-llvm-cov
+
+        - name: Run Cargo Test
+          if: matrix.test != 'false'
+          # TODO: run llvm-cov only for single build since other builds are not sent to codecov anyway
+          run: cargo llvm-cov --workspace ${{ matrix.features }} --lcov --target ${{ matrix.target }} --output-path lcov.info
