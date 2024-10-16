@@ -48,24 +48,24 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.setup_build_matrix.outputs.matrix) }}
 
-      steps:
-        - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
 
-        - name: Install Node.js
-          uses: actions/setup-node@v4
-          with:
-            node-version: "20.11.0"
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.11.0"
 
-        - name: Install Rust Toolchain
-          uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Install Rust Toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
 
-        - name: Install Cross compilation toolchain
-          uses: taiki-e/setup-cross-toolchain-action@v1
-          with:
-            target: ${{ matrix.target }}
-        - uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Install Cross compilation toolchain
+        uses: taiki-e/setup-cross-toolchain-action@v1
+        with:
+          target: ${{ matrix.target }}
+      - uses: taiki-e/install-action@cargo-llvm-cov
 
-        - name: Run Cargo Test
-          if: matrix.test != 'false'
-          # TODO: run llvm-cov only for single build since other builds are not sent to codecov anyway
-          run: cargo llvm-cov --workspace ${{ matrix.features }} --lcov --target ${{ matrix.target }} --output-path lcov.info
+      - name: Run Cargo Test
+        if: matrix.test != 'false'
+        # TODO: run llvm-cov only for single build since other builds are not sent to codecov anyway
+        run: cargo llvm-cov --workspace ${{ matrix.features }} --lcov --target ${{ matrix.target }} --output-path lcov.info
