@@ -1,6 +1,6 @@
 [package]
 name = "tailcall-valid"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "A Rust library for validating multiple inputs, collecting all possible errors instead of failing at the first error. Useful for scenarios where comprehensive feedback is required for user inputs or configuration settings."
 license = "Apache-2.0"
