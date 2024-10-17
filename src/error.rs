@@ -136,13 +136,19 @@ mod tests {
     use pretty_assertions::assert_eq;
     use stripmargin::StripMargin;
 
-    use crate::{Cause, ValidationError};
+    use crate::{Cause, Valid, ValidationError};
 
     #[derive(Debug, PartialEq, serde::Deserialize)]
     struct Foo {
         a: i32,
     }
 
+    #[test]
+    fn foo() {
+        let err = "Expected a value";
+        let result: Valid<i32, &str> = Valid::fail(err);
+        assert_eq!(result, Valid::from_vec_cause(vec![Cause::new(err)]));
+    }
     #[test]
     fn test_error_display_formatting() {
         let error = ValidationError::from(vec![

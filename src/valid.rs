@@ -282,9 +282,9 @@ mod tests {
 
     #[test]
     fn test_ok_ok_cause() {
-        let option: Option<i32> = None;
+        let option: Option<i32> = Some(1);
         let result = Valid::from_option(option, 1);
-        assert_eq!(result, Valid::from_vec_cause(vec![Cause::new(1)]));
+        assert_eq!(result, Valid::succeed(1));
     }
 
     #[test]
