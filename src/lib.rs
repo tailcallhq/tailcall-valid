@@ -1,29 +1,29 @@
 mod append;
 mod cause;
-mod error;
 mod valid;
 
 pub use cause::*;
-pub use error::*;
 pub use valid::*;
 
 /// Moral equivalent of TryFrom for validation purposes
 pub trait ValidateFrom<T>: Sized {
     type Error;
-    fn validate_from(a: T) -> Valid<Self, Self::Error>;
+    type Trace;
+    fn validate_from(a: T) -> Valid<Self, Self::Error, Self::Trace>;
 }
 
 /// Moral equivalent of TryInto for validation purposes
 pub trait ValidateInto<T> {
     type Error;
-    fn validate_into(self) -> Valid<T, Self::Error>;
+    type Trace;
+    fn validate_into(self) -> Valid<T, Self::Error, Self::Trace>;
 }
 
 /// A blanket implementation for ValidateInto
 impl<S, T: ValidateFrom<S>> ValidateInto<T> for S {
     type Error = T::Error;
-
-    fn validate_into(self) -> Valid<T, Self::Error> {
+    type Trace = T::Trace;
+    fn validate_into(self) -> Valid<T, Self::Error, Self::Trace> {
         T::validate_from(self)
     }
 }

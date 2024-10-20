@@ -1,19 +1,16 @@
-use std::collections::VecDeque;
-use std::fmt::Display;
+use std::{collections::VecDeque, fmt::Display};
 
 use derive_setters::Setters;
 use thiserror::Error;
 
 #[derive(Clone, PartialEq, Debug, Setters, Error)]
-pub struct Cause<E> {
-    pub message: E,
-    #[setters(strip_option)]
-    pub description: Option<E>,
+pub struct Cause<E, T> {
+    pub error: E,
     #[setters(skip)]
-    pub trace: VecDeque<String>,
+    pub trace: VecDeque<T>,
 }
 
-impl<E: Display> Display for Cause<E> {
+impl<E: Display, T: Display> Display for Cause<E, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "[")?;
         for (i, entry) in self.trace.iter().enumerate() {
@@ -22,44 +19,40 @@ impl<E: Display> Display for Cause<E> {
             }
             write!(f, "{}", entry)?;
         }
-        write!(f, "] {}", self.message)?;
-        if let Some(desc) = self.description.as_ref() {
-            write!(f, ": {}", desc)?;
-        }
+        write!(f, "] {}", self.error)?;
         Ok(())
     }
 }
 
-impl<E> Cause<E> {
+impl<E, T> Cause<E, T> {
     pub fn new(e: E) -> Self {
-        Cause { message: e, description: None, trace: VecDeque::new() }
-    }
-
-    pub fn transform<E1>(self, e: impl Fn(E) -> E1) -> Cause<E1> {
         Cause {
-            message: e(self.message),
-            description: self.description.map(e),
-            trace: self.trace,
+            error: e,
+            trace: Default::default(),
         }
     }
 
-    pub fn trace<T: Display>(mut self, trace: Vec<T>) -> Self {
-        self.trace = trace
-            .iter()
-            .map(|t| t.to_string())
-            .collect::<VecDeque<String>>();
+    pub fn trace(mut self, t: T) -> Self {
+        self.trace.push_front(t);
         self
+    }
+
+    pub fn transform<E1>(self, e: impl Fn(E) -> E1) -> Cause<E1, T> {
+        Cause {
+            error: e(self.error),
+            trace: self.trace,
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
+
     #[test]
     fn test_display() {
         use super::Cause;
-        let cause = Cause::new("error")
-            .trace(vec!["trace0", "trace1"])
-            .description("description");
-        assert_eq!(cause.to_string(), "[trace0, trace1] error: description");
+        let cause = Cause::new("error").trace("trace0").trace("trace1");
+        assert_eq!(cause.to_string(), "[trace1, trace0] error");
     }
 }
