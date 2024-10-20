@@ -107,11 +107,10 @@ pub trait Validator<A, E, T>: Sized {
 
 impl<A, E, T> Valid<A, E, T> {
     pub fn fail(e: E) -> Valid<A, E, T> {
-        Valid(Err((vec![Cause {
+        Valid(Err(vec![Cause {
             error: e,
             trace: Default::default(),
-        }])
-        .into()))
+        }]))
     }
 
     pub fn fail_at(error: E, trace: T) -> Valid<A, E, T>
@@ -119,11 +118,11 @@ impl<A, E, T> Valid<A, E, T> {
         E: std::fmt::Debug,
     {
         let cause = Cause::new(error).trace(trace);
-        Valid(Err((vec![cause]).into()))
+        Valid(Err(vec![cause]))
     }
 
     pub fn from(error: Vec<Cause<E, T>>) -> Self {
-        Valid(Err(error.into()))
+        Valid(Err(error))
     }
 
     pub fn succeed(a: A) -> Valid<A, E, T> {
