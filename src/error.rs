@@ -5,9 +5,9 @@ use regex::Regex;
 use super::Cause;
 
 #[derive(Debug, PartialEq, Default, Clone)]
-pub struct ValidationError<E>(Vec<Cause<E>>);
+pub struct Error<E>(Vec<Cause<E>>);
 
-impl<E: Display> Display for ValidationError<E> {
+impl<E: Display> Display for Error<E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("Validation Error\n")?;
         let errors = self.as_vec();
@@ -33,22 +33,22 @@ impl<E: Display> Display for ValidationError<E> {
     }
 }
 
-impl<E> ValidationError<E> {
+impl<E> Error<E> {
     pub fn as_vec(&self) -> &Vec<Cause<E>> {
         &self.0
     }
 
-    pub fn combine(mut self, mut other: ValidationError<E>) -> ValidationError<E> {
+    pub fn combine(mut self, mut other: Error<E>) -> Error<E> {
         self.0.append(&mut other.0);
         self
     }
 
     pub fn empty() -> Self {
-        ValidationError(Vec::new())
+        Error(Vec::new())
     }
 
     pub fn new(e: E) -> Self {
-        ValidationError(vec![Cause::new(e)])
+        Error(vec![Cause::new(e)])
     }
 
     pub fn is_empty(&self) -> bool {
@@ -69,26 +69,26 @@ impl<E> ValidationError<E> {
         Self(errors)
     }
 
-    pub fn transform<E1>(self, f: &impl Fn(E) -> E1) -> ValidationError<E1> {
-        ValidationError(self.0.into_iter().map(|cause| cause.transform(f)).collect())
+    pub fn transform<E1>(self, f: &impl Fn(E) -> E1) -> Error<E1> {
+        Error(self.0.into_iter().map(|cause| cause.transform(f)).collect())
     }
 }
 
-impl<E: Display + Debug> std::error::Error for ValidationError<E> {}
+impl<E: Display + Debug> std::error::Error for Error<E> {}
 
-impl<E> From<Cause<E>> for ValidationError<E> {
+impl<E> From<Cause<E>> for Error<E> {
     fn from(value: Cause<E>) -> Self {
-        ValidationError(vec![value])
+        Error(vec![value])
     }
 }
 
-impl<E> From<Vec<Cause<E>>> for ValidationError<E> {
+impl<E> From<Vec<Cause<E>>> for Error<E> {
     fn from(value: Vec<Cause<E>>) -> Self {
-        ValidationError(value)
+        Error(value)
     }
 }
 
-impl From<serde_path_to_error::Error<serde_json::Error>> for ValidationError<String> {
+impl From<serde_path_to_error::Error<serde_json::Error>> for Error<String> {
     fn from(error: serde_path_to_error::Error<serde_json::Error>) -> Self {
         let mut trace = Vec::new();
         let segments = error.path().iter();
@@ -121,13 +121,13 @@ impl From<serde_path_to_error::Error<serde_json::Error>> for ValidationError<Str
             )
             .into_owned();
 
-        ValidationError(vec![Cause::new(message).trace(trace)])
+        Error(vec![Cause::new(message).trace(trace)])
     }
 }
 
-impl From<http::header::InvalidHeaderValue> for ValidationError<String> {
+impl From<http::header::InvalidHeaderValue> for Error<String> {
     fn from(error: http::header::InvalidHeaderValue) -> Self {
-        ValidationError::new(error.to_string())
+        Error::new(error.to_string())
     }
 }
 
@@ -136,7 +136,7 @@ mod tests {
     use pretty_assertions::assert_eq;
     use stripmargin::StripMargin;
 
-    use crate::{Cause, ValidationError};
+    use crate::{Cause, Error};
 
     #[derive(Debug, PartialEq, serde::Deserialize)]
     struct Foo {
@@ -145,7 +145,7 @@ mod tests {
 
     #[test]
     fn test_error_display_formatting() {
-        let error = ValidationError::from(vec![
+        let error = Error::from(vec![
             Cause::new("1").trace(vec!["a", "b"]),
             Cause::new("2"),
             Cause::new("3"),
@@ -164,8 +164,8 @@ mod tests {
     fn test_from_serde_error() {
         let foo = &mut serde_json::Deserializer::from_str("{ \"a\": true }");
         let actual =
-            ValidationError::from(serde_path_to_error::deserialize::<_, Foo>(foo).unwrap_err());
-        let expected = ValidationError::new(
+            Error::from(serde_path_to_error::deserialize::<_, Foo>(foo).unwrap_err());
+        let expected = Error::new(
             "Parsing failed because of invalid type: boolean `true`, expected i32".to_string(),
         )
         .trace("a");
