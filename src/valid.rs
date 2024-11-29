@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use super::append::Append;
 use super::Cause;
 
@@ -50,7 +52,7 @@ pub trait Validator<A, E, T>: Sized {
         Fusion(self.zip(other))
     }
 
-    fn trace(self, trace: T) -> Valid<A, E, T>
+    fn trace(self, trace: impl Borrow<T>) -> Valid<A, E, T>
     where
         T: Clone,
     {
@@ -58,7 +60,7 @@ pub trait Validator<A, E, T>: Sized {
         if let Err(error) = valid {
             return Valid(Err(error
                 .into_iter()
-                .map(|cause| cause.trace(trace.clone()))
+                .map(|cause| cause.trace(trace.borrow().clone()))
                 .collect()));
         }
 
@@ -119,10 +121,6 @@ impl<A, E, T> Valid<A, E, T> {
     {
         let cause = Cause::new(error).trace(trace);
         Valid(Err(vec![cause]))
-    }
-
-    pub fn from(error: Vec<Cause<E, T>>) -> Self {
-        Valid(Err(error))
     }
 
     pub fn succeed(a: A) -> Valid<A, E, T> {
@@ -306,9 +304,9 @@ mod tests {
     #[test]
     fn test_trace() {
         let result = Valid::<(), i32, String>::fail(1)
-            .trace("A".into())
-            .trace("B".into())
-            .trace("C".into());
+            .trace("A".to_string())
+            .trace("B".to_string())
+            .trace("C".to_string());
 
         let expected = Valid::from(vec![Cause {
             error: 1,
@@ -402,5 +400,21 @@ mod tests {
         let result = Valid::<i32, i32, i32>::fail(1).foreach(|v| a = v);
         assert_eq!(result, Valid::fail(1));
         assert_eq!(a, 0);
+    }
+
+    #[test]
+    fn test_trace_owned_referenced() {
+        let trace_value = "inner".to_string();
+
+        let valid: Valid<((), ()), &str, String> = Valid::fail("fail")
+            .trace(&trace_value)
+            .zip(Valid::fail("fail 2").trace(&trace_value))
+            .trace("outer".to_string());
+
+        let causes = valid.to_result().unwrap_err();
+
+        assert_eq!(causes.len(), 2);
+        assert_eq!(causes[0].to_string(), "[outer, inner] fail");
+        assert_eq!(causes[1].to_string(), "[outer, inner] fail 2");
     }
 }
