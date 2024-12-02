@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-
 use super::append::Append;
 use super::Cause;
 
@@ -52,15 +50,12 @@ pub trait Validator<A, E, T>: Sized {
         Fusion(self.zip(other))
     }
 
-    fn trace(self, trace: impl Borrow<T>) -> Valid<A, E, T>
-    where
-        T: Clone,
-    {
+    fn trace(self, trace: impl Into<T> + Clone) -> Valid<A, E, T> {
         let valid = self.to_result();
         if let Err(error) = valid {
             return Valid(Err(error
                 .into_iter()
-                .map(|cause| cause.trace(trace.borrow().clone()))
+                .map(|cause| cause.trace(trace.clone().into()))
                 .collect()));
         }
 
@@ -408,8 +403,8 @@ mod tests {
 
         let valid: Valid<((), ()), &str, String> = Valid::fail("fail")
             .trace(&trace_value)
-            .zip(Valid::fail("fail 2").trace(&trace_value))
-            .trace("outer".to_string());
+            .zip(Valid::fail("fail 2").trace(trace_value))
+            .trace("outer");
 
         let causes = valid.to_result().unwrap_err();
 
