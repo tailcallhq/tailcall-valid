@@ -1,14 +1,45 @@
 use super::append::Append;
 use super::Cause;
 
+/// A validation type that can represent either a successful value of type `A`
+/// or a collection of validation errors of type `E` with trace context `T`.
+///
+/// `Valid` is useful for accumulating multiple validation errors rather than
+/// stopping at the first error encountered.
 #[derive(Debug, PartialEq)]
 pub struct Valid<A, E, T>(Result<A, Vec<Cause<E, T>>>);
 
+/// Trait for types that can perform validation operations.
+///
+/// This trait provides a rich set of combinators for working with validations,
+/// allowing you to chain, combine and transform validation results.
 pub trait Validator<A, E, T>: Sized {
+    /// Maps a function over the successful value, transforming it to a new type.
+    ///
+    /// # Examples
+    /// ```
+    /// # use validation::Valid;
+    /// # use validation::Validator;
+    /// let valid = Valid::<i32, (), ()>::succeed(1);
+    /// let result = valid.map(|x| x.to_string());
+    /// assert_eq!(result, Valid::succeed("1".to_string()));
+    /// ```
     fn map<A1>(self, f: impl FnOnce(A) -> A1) -> Valid<A1, E, T> {
         Valid(self.to_result().map(f))
     }
 
+    /// Executes a side effect function if the validation is successful.
+    /// The original value is preserved.
+    ///
+    /// # Examples
+    /// ```
+    /// # use validation::Valid;
+    /// # use validation::Validator;
+    /// let mut sum = 0;
+    /// let valid = Valid::<i32, (), ()>::succeed(5);
+    /// valid.foreach(|x| sum += x);
+    /// assert_eq!(sum, 5);
+    /// ```
     fn foreach(self, mut f: impl FnMut(A)) -> Valid<A, E, T>
     where
         A: Clone,
@@ -22,14 +53,38 @@ pub trait Validator<A, E, T>: Sized {
         }
     }
 
+    /// Returns true if the validation is successful.
     fn is_succeed(&self) -> bool;
 
+    /// Returns true if the validation contains errors.
     fn is_fail(&self) -> bool;
 
+    /// Combines two validations, keeping the result of the second one if both succeed.
+    /// If either validation fails, all errors are collected.
+    ///
+    /// # Examples
+    /// ```
+    /// # use validation::Valid;
+    /// # use validation::Validator;
+    /// let v1 = Valid::<i32, &str, ()>::succeed(1);
+    /// let v2 = Valid::<&str, &str, ()>::succeed("ok");
+    /// assert_eq!(v1.and(v2), Valid::succeed("ok"));
+    /// ```
     fn and<A1>(self, other: Valid<A1, E, T>) -> Valid<A1, E, T> {
         self.zip(other).map(|(_, a1)| a1)
     }
 
+    /// Combines two validations into a tuple of their results.
+    /// If either validation fails, all errors are collected.
+    ///
+    /// # Examples
+    /// ```
+    /// # use validation::Valid;
+    /// # use validation::Validator;
+    /// let v1 = Valid::<i32, &str, ()>::succeed(1);
+    /// let v2 = Valid::<&str, &str, ()>::succeed("ok");
+    /// assert_eq!(v1.zip(v2), Valid::succeed((1, "ok")));
+    /// ```
     fn zip<A1>(self, other: Valid<A1, E, T>) -> Valid<(A, A1), E, T> {
         match self.to_result() {
             Ok(a) => match other.0 {
@@ -46,10 +101,33 @@ pub trait Validator<A, E, T>: Sized {
         }
     }
 
+    /// Starts a fusion chain of validations. This allows combining multiple
+    /// validation results using the `Append` trait.
+    ///
+    /// # Examples
+    /// ```
+    /// # use validation::Valid;
+    /// # use validation::Validator;
+    /// let v1 = Valid::succeed(vec![1]);
+    /// let v2 = Valid::succeed(vec![2]);
+    /// let result = v1.fuse(v2).to_result().unwrap();
+    /// assert_eq!(result, vec![1, 2]);
+    /// ```
     fn fuse<A1>(self, other: Valid<A1, E, T>) -> Fusion<(A, A1), E, T> {
         Fusion(self.zip(other))
     }
 
+    /// Adds trace context to any errors in the validation.
+    /// Successful validations are unaffected.
+    ///
+    /// # Examples
+    /// ```
+    /// # use validation::Valid;
+    /// # use validation::Validator;
+    /// let result = Valid::<(), &str, &str>::fail("error")
+    ///     .trace("field_name")
+    ///     .trace("form");
+    /// ```
     fn trace(self, trace: impl Into<T> + Clone) -> Valid<A, E, T> {
         let valid = self.to_result();
         if let Err(error) = valid {
@@ -62,6 +140,22 @@ pub trait Validator<A, E, T>: Sized {
         Valid(valid)
     }
 
+    /// Handles both success and failure cases of a validation.
+    ///
+    /// - If successful, applies the `ok` function to the value
+    /// - If failed, calls the `err` function and combines any new errors
+    ///
+    /// # Examples
+    /// ```
+    /// # use validation::Valid;
+    /// # use validation::Validator;
+    /// let valid = Valid::<i32, &str, ()>::succeed(1);
+    /// let result = valid.fold(
+    ///     |n| Valid::succeed(n + 1),
+    ///     || Valid::succeed(0)
+    /// );
+    /// assert_eq!(result, Valid::succeed(2));
+    /// ```
     fn fold<A1>(
         self,
         ok: impl FnOnce(A) -> Valid<A1, E, T>,
@@ -73,8 +167,26 @@ pub trait Validator<A, E, T>: Sized {
         }
     }
 
+    /// Converts the validation into a Result.
     fn to_result(self) -> Result<A, Vec<Cause<E, T>>>;
 
+    /// Chains a validation operation by applying a function to a successful value.
+    /// If the original validation failed, the errors are propagated.
+    ///
+    /// # Examples
+    /// ```
+    /// # use validation::Valid;
+    /// # use validation::Validator;
+    /// let valid = Valid::<i32, &str, ()>::succeed(1);
+    /// let result = valid.and_then(|n| {
+    ///     if n > 0 {
+    ///         Valid::succeed(n * 2)
+    ///     } else {
+    ///         Valid::fail("must be positive")
+    ///     }
+    /// });
+    /// assert_eq!(result, Valid::succeed(2));
+    /// ```
     fn and_then<B>(self, f: impl FnOnce(A) -> Valid<B, E, T>) -> Valid<B, E, T> {
         match self.to_result() {
             Ok(a) => f(a),
@@ -82,17 +194,57 @@ pub trait Validator<A, E, T>: Sized {
         }
     }
 
+    /// Converts a successful validation to `()`.
+    /// Failed validations retain their errors.
+    ///
+    /// # Examples
+    /// ```
+    /// # use validation::Valid;
+    /// # use validation::Validator;
+    /// let valid = Valid::<i32, &str, ()>::succeed(1);
+    /// assert_eq!(valid.unit(), Valid::succeed(()));
+    /// ```
     fn unit(self) -> Valid<(), E, T> {
         self.map(|_| ())
     }
 
+    /// Wraps a successful value in Some(_).
+    ///
+    /// # Examples
+    /// ```
+    /// # use validation::Valid;
+    /// # use validation::Validator;
+    /// let valid = Valid::<i32, &str, ()>::succeed(1);
+    /// assert_eq!(valid.some(), Valid::succeed(Some(1)));
+    /// ```
     fn some(self) -> Valid<Option<A>, E, T> {
         self.map(Some)
     }
 
+    /// Maps a successful validation to a constant value.
+    ///
+    /// # Examples
+    /// ```
+    /// # use validation::Valid;
+    /// # use validation::Validator;
+    /// let valid = Valid::<i32, &str, ()>::succeed(1);
+    /// assert_eq!(valid.map_to("ok"), Valid::succeed("ok"));
+    /// ```
     fn map_to<B>(self, b: B) -> Valid<B, E, T> {
         self.map(|_| b)
     }
+
+    /// Conditionally validates based on a predicate.
+    /// If the predicate returns false, succeeds with ().
+    ///
+    /// # Examples
+    /// ```
+    /// # use validation::Valid;
+    /// # use validation::Validator;
+    /// let valid = Valid::<(), &str, ()>::fail("error");
+    /// let result = valid.when(|| false);
+    /// assert_eq!(result, Valid::succeed(()));
+    /// ```
     fn when(self, f: impl FnOnce() -> bool) -> Valid<(), E, T> {
         if f() {
             self.unit()
@@ -103,6 +255,14 @@ pub trait Validator<A, E, T>: Sized {
 }
 
 impl<A, E, T> Valid<A, E, T> {
+    /// Creates a new failed validation with a single error.
+    ///
+    /// # Examples
+    /// ```
+    /// # use validation::Valid;
+    /// let result: Valid<(), i32, ()> = Valid::fail(1);
+    /// assert!(result.is_fail());
+    /// ```
     pub fn fail(e: E) -> Valid<A, E, T> {
         Valid(Err(vec![Cause {
             error: e,
@@ -110,6 +270,14 @@ impl<A, E, T> Valid<A, E, T> {
         }]))
     }
 
+    /// Creates a new failed validation with an error and trace context.
+    ///
+    /// # Examples
+    /// ```
+    /// # use validation::Valid;
+    /// let result = Valid::<(), &str, &str>::fail_at("error", "context");
+    /// assert!(result.is_fail());
+    /// ```
     pub fn fail_at(error: E, trace: T) -> Valid<A, E, T>
     where
         E: std::fmt::Debug,
@@ -118,10 +286,33 @@ impl<A, E, T> Valid<A, E, T> {
         Valid(Err(vec![cause]))
     }
 
+    /// Creates a new successful validation containing the given value.
+    ///
+    /// # Examples
+    /// ```
+    /// # use validation::Valid;
+    /// let result = Valid::<i32, (), ()>::succeed(42);
+    /// assert!(result.is_succeed());
+    /// ```
     pub fn succeed(a: A) -> Valid<A, E, T> {
         Valid(Ok(a))
     }
 
+    /// Validates each item in an iterator using the provided validation function,
+    /// collecting all errors that occur.
+    ///
+    /// # Examples
+    /// ```
+    /// # use validation::Valid;
+    /// let numbers = vec![1, 2, 3];
+    /// let result = Valid::from_iter(numbers, |n| {
+    ///     if n % 2 == 0 {
+    ///         Valid::succeed(n * 2)
+    ///     } else {
+    ///         Valid::fail(format!("{} is odd", n))
+    ///     }
+    /// });
+    /// ```
     pub fn from_iter<B>(
         iter: impl IntoIterator<Item = A>,
         mut f: impl FnMut(A) -> Valid<B, E, T>,
@@ -142,6 +333,21 @@ impl<A, E, T> Valid<A, E, T> {
         }
     }
 
+    /// Creates a new `Valid` from an `Option` value.
+    /// If the option is `None`, creates a failed validation with the provided error.
+    /// If the option is `Some`, creates a successful validation with the contained value.
+    ///
+    /// # Examples
+    /// ```
+    /// # use validation::Valid;
+    /// let some_value = Some(42);
+    /// let result = Valid::from_option(some_value, "error");
+    /// assert_eq!(result, Valid::succeed(42));
+    ///
+    /// let none_value: Option<i32> = None;
+    /// let result = Valid::from_option(none_value, "error");
+    /// assert_eq!(result, Valid::fail("error"));
+    /// ```
     pub fn from_option(option: Option<A>, e: E) -> Valid<A, E, T> {
         match option {
             Some(a) => Valid::succeed(a),
@@ -149,18 +355,47 @@ impl<A, E, T> Valid<A, E, T> {
         }
     }
 
+    /// Creates a successful validation containing `None`.
+    ///
+    /// This is useful when you want to explicitly represent the absence of a value
+    /// as a successful validation rather than an error condition.
+    ///
+    /// # Examples
+    /// ```
+    /// # use validation::Valid;
+    /// let result: Valid<Option<i32>, &str, ()> = Valid::none();
+    /// assert_eq!(result, Valid::succeed(None));
+    /// ```
     pub fn none() -> Valid<Option<A>, E, T> {
         Valid::succeed(None)
     }
 }
 
 impl<A, E, T> From<Cause<E, T>> for Valid<A, E, T> {
+    /// Creates a failed validation from a single `Cause`.
+    ///
+    /// # Examples
+    /// ```
+    /// # use validation::{Valid, Cause};
+    /// let cause = Cause::new("error");
+    /// let result: Valid<(), &str, ()> = Valid::from(cause);
+    /// assert!(result.is_fail());
+    /// ```
     fn from(value: Cause<E, T>) -> Self {
         Valid(Err(vec![value]))
     }
 }
 
 impl<A, E, T> From<Vec<Cause<E, T>>> for Valid<A, E, T> {
+    /// Creates a failed validation from a vector of `Cause`s.
+    ///
+    /// # Examples
+    /// ```
+    /// # use validation::{Valid, Cause};
+    /// let causes = vec![Cause::new("error1"), Cause::new("error2")];
+    /// let result: Valid<(), &str, ()> = Valid::from(causes);
+    /// assert!(result.is_fail());
+    /// ```
     fn from(value: Vec<Cause<E, T>>) -> Self {
         Valid(Err(value))
     }
@@ -180,8 +415,24 @@ impl<A, E, T> Validator<A, E, T> for Valid<A, E, T> {
     }
 }
 
+/// A type that allows chaining multiple validations together while combining their results.
+///
+/// `Fusion` is particularly useful when you want to accumulate values from multiple
+/// successful validations into a single composite value.
 pub struct Fusion<A, E, T>(Valid<A, E, T>);
 impl<A, E, T> Fusion<A, E, T> {
+    /// Combines this fusion with another validation, using the `Append` trait to
+    /// combine their successful values.
+    ///
+    /// # Examples
+    /// ```
+    /// # use validation::Valid;
+    /// # use validation::Validator;
+    /// let v1 = Valid::succeed(vec![1, 2]);
+    /// let v2 = Valid::succeed(vec![3, 4]);
+    /// let result = v1.fuse(v2).to_result().unwrap();
+    /// assert_eq!(result, vec![1, 2, 3, 4]);
+    /// ```
     pub fn fuse<A1>(self, other: Valid<A1, E, T>) -> Fusion<A::Out, E, T>
     where
         A: Append<A1>,
@@ -203,6 +454,19 @@ impl<A, E, T> Validator<A, E, T> for Fusion<A, E, T> {
 }
 
 impl<A, E, T> From<Result<A, Cause<E, T>>> for Valid<A, E, T> {
+    /// Creates a `Valid` from a `Result` containing a single `Cause` as its error type.
+    ///
+    /// # Examples
+    /// ```
+    /// # use validation::{Valid, Cause};
+    /// let ok_result: Result<i32, Cause<&str, ()>> = Ok(42);
+    /// let valid = Valid::from(ok_result);
+    /// assert_eq!(valid, Valid::succeed(42));
+    ///
+    /// let err_result: Result<i32, Cause<&str, ()>> = Err(Cause::new("error"));
+    /// let valid = Valid::from(err_result);
+    /// assert!(valid.is_fail());
+    /// ```
     fn from(value: Result<A, Cause<E, T>>) -> Self {
         match value {
             Ok(a) => Valid::succeed(a),
@@ -212,6 +476,20 @@ impl<A, E, T> From<Result<A, Cause<E, T>>> for Valid<A, E, T> {
 }
 
 impl<A, E, T> From<Fusion<A, E, T>> for Valid<A, E, T> {
+    /// Converts a `Fusion` back into a `Valid`.
+    ///
+    /// This is typically used at the end of a chain of `fuse` operations
+    /// to convert the final result back into a `Valid`.
+    ///
+    /// # Examples
+    /// ```
+    /// # use validation::{Valid, Validator};
+    /// let v1 = Valid::succeed(vec![1]);
+    /// let v2 = Valid::succeed(vec![2]);
+    /// let fusion = v1.fuse(v2);
+    /// let result: Valid<Vec<i32>, (), ()> = Valid::from(fusion);
+    /// assert_eq!(result, Valid::succeed(vec![1, 2]));
+    /// ```
     fn from(value: Fusion<A, E, T>) -> Self {
         Valid(value.to_result())
     }
