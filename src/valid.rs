@@ -299,9 +299,9 @@ mod tests {
     #[test]
     fn test_trace() {
         let result = Valid::<(), i32, String>::fail(1)
-            .trace("A".to_string())
-            .trace("B".to_string())
-            .trace("C".to_string());
+            .trace("A")
+            .trace("B")
+            .trace("C");
 
         let expected = Valid::from(vec![Cause {
             error: 1,
