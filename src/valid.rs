@@ -18,8 +18,7 @@ pub trait Validator<A, E, T>: Sized {
     ///
     /// # Examples
     /// ```
-    /// # use validation::Valid;
-    /// # use validation::Validator;
+    /// use tailcall_valid::{Valid, Validator};
     /// let valid = Valid::<i32, (), ()>::succeed(1);
     /// let result = valid.map(|x| x.to_string());
     /// assert_eq!(result, Valid::succeed("1".to_string()));
@@ -33,8 +32,7 @@ pub trait Validator<A, E, T>: Sized {
     ///
     /// # Examples
     /// ```
-    /// # use validation::Valid;
-    /// # use validation::Validator;
+    /// use tailcall_valid::{Valid, Validator};
     /// let mut sum = 0;
     /// let valid = Valid::<i32, (), ()>::succeed(5);
     /// valid.foreach(|x| sum += x);
@@ -64,8 +62,7 @@ pub trait Validator<A, E, T>: Sized {
     ///
     /// # Examples
     /// ```
-    /// # use validation::Valid;
-    /// # use validation::Validator;
+    /// use tailcall_valid::{Valid, Validator};
     /// let v1 = Valid::<i32, &str, ()>::succeed(1);
     /// let v2 = Valid::<&str, &str, ()>::succeed("ok");
     /// assert_eq!(v1.and(v2), Valid::succeed("ok"));
@@ -79,8 +76,7 @@ pub trait Validator<A, E, T>: Sized {
     ///
     /// # Examples
     /// ```
-    /// # use validation::Valid;
-    /// # use validation::Validator;
+    /// use tailcall_valid::{Valid, Validator};
     /// let v1 = Valid::<i32, &str, ()>::succeed(1);
     /// let v2 = Valid::<&str, &str, ()>::succeed("ok");
     /// assert_eq!(v1.zip(v2), Valid::succeed((1, "ok")));
@@ -106,8 +102,7 @@ pub trait Validator<A, E, T>: Sized {
     ///
     /// # Examples
     /// ```
-    /// # use validation::Valid;
-    /// # use validation::Validator;
+    /// use tailcall_valid::{Valid, Validator};
     /// let v1 = Valid::succeed(vec![1]);
     /// let v2 = Valid::succeed(vec![2]);
     /// let result = v1.fuse(v2).to_result().unwrap();
@@ -122,8 +117,7 @@ pub trait Validator<A, E, T>: Sized {
     ///
     /// # Examples
     /// ```
-    /// # use validation::Valid;
-    /// # use validation::Validator;
+    /// use tailcall_valid::{Valid, Validator};
     /// let result = Valid::<(), &str, &str>::fail("error")
     ///     .trace("field_name")
     ///     .trace("form");
@@ -147,8 +141,7 @@ pub trait Validator<A, E, T>: Sized {
     ///
     /// # Examples
     /// ```
-    /// # use validation::Valid;
-    /// # use validation::Validator;
+    /// use tailcall_valid::{Valid, Validator};
     /// let valid = Valid::<i32, &str, ()>::succeed(1);
     /// let result = valid.fold(
     ///     |n| Valid::succeed(n + 1),
@@ -175,8 +168,7 @@ pub trait Validator<A, E, T>: Sized {
     ///
     /// # Examples
     /// ```
-    /// # use validation::Valid;
-    /// # use validation::Validator;
+    /// use tailcall_valid::{Valid, Validator};
     /// let valid = Valid::<i32, &str, ()>::succeed(1);
     /// let result = valid.and_then(|n| {
     ///     if n > 0 {
@@ -199,8 +191,7 @@ pub trait Validator<A, E, T>: Sized {
     ///
     /// # Examples
     /// ```
-    /// # use validation::Valid;
-    /// # use validation::Validator;
+    /// use tailcall_valid::{Valid, Validator};
     /// let valid = Valid::<i32, &str, ()>::succeed(1);
     /// assert_eq!(valid.unit(), Valid::succeed(()));
     /// ```
@@ -212,8 +203,7 @@ pub trait Validator<A, E, T>: Sized {
     ///
     /// # Examples
     /// ```
-    /// # use validation::Valid;
-    /// # use validation::Validator;
+    /// use tailcall_valid::{Valid, Validator};
     /// let valid = Valid::<i32, &str, ()>::succeed(1);
     /// assert_eq!(valid.some(), Valid::succeed(Some(1)));
     /// ```
@@ -225,8 +215,7 @@ pub trait Validator<A, E, T>: Sized {
     ///
     /// # Examples
     /// ```
-    /// # use validation::Valid;
-    /// # use validation::Validator;
+    /// use tailcall_valid::{Valid, Validator};
     /// let valid = Valid::<i32, &str, ()>::succeed(1);
     /// assert_eq!(valid.map_to("ok"), Valid::succeed("ok"));
     /// ```
@@ -239,8 +228,7 @@ pub trait Validator<A, E, T>: Sized {
     ///
     /// # Examples
     /// ```
-    /// # use validation::Valid;
-    /// # use validation::Validator;
+    /// use tailcall_valid::{Valid, Validator};
     /// let valid = Valid::<(), &str, ()>::fail("error");
     /// let result = valid.when(|| false);
     /// assert_eq!(result, Valid::succeed(()));
@@ -259,7 +247,7 @@ impl<A, E, T> Valid<A, E, T> {
     ///
     /// # Examples
     /// ```
-    /// # use validation::Valid;
+    /// use tailcall_valid::Valid;
     /// let result: Valid<(), i32, ()> = Valid::fail(1);
     /// assert!(result.is_fail());
     /// ```
@@ -274,7 +262,7 @@ impl<A, E, T> Valid<A, E, T> {
     ///
     /// # Examples
     /// ```
-    /// # use validation::Valid;
+    /// use tailcall_valid::Valid;
     /// let result = Valid::<(), &str, &str>::fail_at("error", "context");
     /// assert!(result.is_fail());
     /// ```
@@ -290,7 +278,7 @@ impl<A, E, T> Valid<A, E, T> {
     ///
     /// # Examples
     /// ```
-    /// # use validation::Valid;
+    /// use tailcall_valid::Valid;
     /// let result = Valid::<i32, (), ()>::succeed(42);
     /// assert!(result.is_succeed());
     /// ```
@@ -303,7 +291,7 @@ impl<A, E, T> Valid<A, E, T> {
     ///
     /// # Examples
     /// ```
-    /// # use validation::Valid;
+    /// use tailcall_valid::Valid;
     /// let numbers = vec![1, 2, 3];
     /// let result = Valid::from_iter(numbers, |n| {
     ///     if n % 2 == 0 {
@@ -339,7 +327,7 @@ impl<A, E, T> Valid<A, E, T> {
     ///
     /// # Examples
     /// ```
-    /// # use validation::Valid;
+    /// use tailcall_valid::Valid;
     /// let some_value = Some(42);
     /// let result = Valid::from_option(some_value, "error");
     /// assert_eq!(result, Valid::succeed(42));
@@ -362,7 +350,7 @@ impl<A, E, T> Valid<A, E, T> {
     ///
     /// # Examples
     /// ```
-    /// # use validation::Valid;
+    /// use tailcall_valid::Valid;
     /// let result: Valid<Option<i32>, &str, ()> = Valid::none();
     /// assert_eq!(result, Valid::succeed(None));
     /// ```
@@ -376,7 +364,7 @@ impl<A, E, T> From<Cause<E, T>> for Valid<A, E, T> {
     ///
     /// # Examples
     /// ```
-    /// # use validation::{Valid, Cause};
+    /// use tailcall_valid::{Valid, Cause};
     /// let cause = Cause::new("error");
     /// let result: Valid<(), &str, ()> = Valid::from(cause);
     /// assert!(result.is_fail());
@@ -391,7 +379,7 @@ impl<A, E, T> From<Vec<Cause<E, T>>> for Valid<A, E, T> {
     ///
     /// # Examples
     /// ```
-    /// # use validation::{Valid, Cause};
+    /// use tailcall_valid::{Valid, Cause};
     /// let causes = vec![Cause::new("error1"), Cause::new("error2")];
     /// let result: Valid<(), &str, ()> = Valid::from(causes);
     /// assert!(result.is_fail());
@@ -426,8 +414,7 @@ impl<A, E, T> Fusion<A, E, T> {
     ///
     /// # Examples
     /// ```
-    /// # use validation::Valid;
-    /// # use validation::Validator;
+    /// use tailcall_valid::{Valid, Validator};
     /// let v1 = Valid::succeed(vec![1, 2]);
     /// let v2 = Valid::succeed(vec![3, 4]);
     /// let result = v1.fuse(v2).to_result().unwrap();
@@ -458,7 +445,7 @@ impl<A, E, T> From<Result<A, Cause<E, T>>> for Valid<A, E, T> {
     ///
     /// # Examples
     /// ```
-    /// # use validation::{Valid, Cause};
+    /// use tailcall_valid::{Valid, Cause};
     /// let ok_result: Result<i32, Cause<&str, ()>> = Ok(42);
     /// let valid = Valid::from(ok_result);
     /// assert_eq!(valid, Valid::succeed(42));
@@ -483,7 +470,7 @@ impl<A, E, T> From<Fusion<A, E, T>> for Valid<A, E, T> {
     ///
     /// # Examples
     /// ```
-    /// # use validation::{Valid, Validator};
+    /// use tailcall_valid::{Valid, Validator};
     /// let v1 = Valid::succeed(vec![1]);
     /// let v2 = Valid::succeed(vec![2]);
     /// let fusion = v1.fuse(v2);
@@ -509,7 +496,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::Cause;
-    use crate::{Valid, Validator};
+    use tailcall_valid::{Valid, Validator};
 
     #[test]
     fn test_ok() {
