@@ -702,4 +702,31 @@ mod tests {
         assert_eq!(causes[0].to_string(), "[outer, inner] fail");
         assert_eq!(causes[1].to_string(), "[outer, inner] fail 2");
     }
+    #[test]
+    fn test_from_result_vec_causes_ok() {
+        let ok_result: Result<i32, Vec<Cause<&str, ()>>> = Ok(42);
+        let valid = Valid::from(ok_result);
+        assert_eq!(valid, Valid::succeed(42));
+    }
+
+    #[test]
+    fn test_from_result_vec_causes_err() {
+        let err_result: Result<i32, Vec<Cause<&str, ()>>> = Err(vec![
+            Cause::new("error1"),
+            Cause::new("error2"),
+        ]);
+        let valid = Valid::from(err_result);
+        let expected = Valid::from(vec![Cause::new("error1"), Cause::new("error2")]);
+        assert_eq!(valid, expected);
+        assert!(valid.is_fail());
+    }
+
+    #[test]
+    fn test_from_result_vec_causes_empty_err() {
+        let err_result: Result<i32, Vec<Cause<&str, ()>>> = Err(vec![]);
+        let valid = Valid::from(err_result);
+        let expected = Valid::from(vec![]);
+        assert_eq!(valid, expected);
+        assert!(valid.is_fail());
+    }
 }
