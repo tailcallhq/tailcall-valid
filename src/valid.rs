@@ -711,10 +711,8 @@ mod tests {
 
     #[test]
     fn test_from_result_vec_causes_err() {
-        let err_result: Result<i32, Vec<Cause<&str, ()>>> = Err(vec![
-            Cause::new("error1"),
-            Cause::new("error2"),
-        ]);
+        let err_result: Result<i32, Vec<Cause<&str, ()>>> =
+            Err(vec![Cause::new("error1"), Cause::new("error2")]);
         let valid = Valid::from(err_result);
         let expected = Valid::from(vec![Cause::new("error1"), Cause::new("error2")]);
         assert_eq!(valid, expected);
