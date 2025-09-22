@@ -463,6 +463,31 @@ impl<A, E, T> From<Result<A, Cause<E, T>>> for Valid<A, E, T> {
     }
 }
 
+impl<A, E, T> From<Result<A, Vec<Cause<E, T>>>> for Valid<A, E, T> {
+    /// Creates a `Valid` from a `Result` containing multiple `Cause`s as its error type.
+    ///
+    /// # Examples
+    /// ```
+    /// use tailcall_valid::{Valid, Validator, Cause};
+    /// let ok_result: Result<i32, Vec<Cause<&str, ()>>> = Ok(42);
+    /// let valid = Valid::from(ok_result);
+    /// assert_eq!(valid, Valid::succeed(42));
+    ///
+    /// let err_result: Result<i32, Vec<Cause<&str, ()>>> = Err(vec![
+    ///     Cause::new("error1"),
+    ///     Cause::new("error2")
+    /// ]);
+    /// let valid = Valid::from(err_result);
+    /// assert!(valid.is_fail());
+    /// ```
+    fn from(value: Result<A, Vec<Cause<E, T>>>) -> Self {
+        match value {
+            Ok(a) => Valid::succeed(a),
+            Err(e) => Valid(Err(e)),
+        }
+    }
+}
+
 impl<A, E, T> From<Fusion<A, E, T>> for Valid<A, E, T> {
     /// Converts a `Fusion` back into a `Valid`.
     ///
@@ -496,8 +521,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::Cause;
-    use tailcall_valid::{Valid, Validator};
+    use super::{Cause, Valid, Validator};
 
     #[test]
     fn test_ok() {
