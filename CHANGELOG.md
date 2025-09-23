@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4](https://github.com/tailcallhq/tailcall-valid/compare/v0.1.3...v0.1.4) - 2025-09-23
+
+### Fixed
+
+- *(deps)* update rust crate regex to v1.11.2 ([#41](https://github.com/tailcallhq/tailcall-valid/pull/41))
+
 ## [0.1.3](https://github.com/tailcallhq/tailcall-valid/compare/v0.1.2...v0.1.3) - 2024-12-02
 
 ### Added
