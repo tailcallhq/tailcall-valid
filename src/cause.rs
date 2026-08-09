@@ -17,7 +17,7 @@ impl<E: Display, T: Display> Display for Cause<E, T> {
             if i > 0 {
                 write!(f, ", ")?;
             }
-            write!(f, "{}", entry)?;
+            write!(f, "{entry}")?;
         }
         write!(f, "] {}", self.error)?;
         Ok(())
